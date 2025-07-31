@@ -1,22 +1,65 @@
 import aiohttp
 import asyncio
-import requests
 from bs4 import BeautifulSoup, Tag
+import json
 import os
+import re
+import requests
 import sys
 import urllib.parse as urlparse
 
 
 # Not provided
-BASE_URL = ''
+BASE_URL = 'https://myrient.erista.me/files/No-Intro/Sega%20-%20SG-1000/'
 HEADERS = {
     "Referer": BASE_URL,
     "User-Agent": "Mozilla/5.0",
 }
 EXTENSION = '.zip'
 
-# filename: url
+# filename: [
+#   url,
+#   title,
+#   tags (list)
+# ]
 files = {}
+
+TAGS = {
+    'Region': [
+        'Australia',
+        'Europe',
+        'France',
+        'Japan',
+        'Korea',
+        'New Zealand',
+        'Taiwan'
+    ],
+    'Language': [
+        'En',
+        'Ja',
+        'Chinese Logo',
+        'English Logo',
+        'Korean Logo'
+    ],
+    'Platform': [
+        'SC-3000',
+        'SF-7000',
+        'Othello Multivision'
+    ],
+    'Software Type': [
+        'BIOS',
+        'Program',
+        'Unl'
+    ],
+    'Revision': [
+        'Proto',
+        'Rev 1',
+        'Rev 2'
+    ],
+    'Dump Type': [
+        'Alt'
+    ]
+}
 
 
 def get_all_hrefs():
@@ -27,6 +70,7 @@ def get_all_hrefs():
 
             parser = BeautifulSoup(response.text, 'html.parser')
             hrefs = []
+            href = None
             # a tags for links
             for a in parser.find_all('a'):
                 # Make sure is proper link with href attribute
@@ -45,17 +89,63 @@ def get_all_hrefs():
         print(f'Other error: {error}')
 
 
+# Return value:
+# List containing the title of the game and the tags
+# This is done at the same time to handle cases of parenthetical subtitles
+def get_title_and_tags(filename):
+    tag_regex = r'(?<=\().*?(?=\))'
+    matches = re.findall(tag_regex, filename)
+
+    split_tags = []
+    tags = []
+    all_tags = [item for sublist in TAGS.values() for item in sublist]
+    title = ''
+    # For situations where the filename contains a parenthetical subtitle
+    # Example: Kagaku (Gensokigou Master) (Japan) (SC-3000) (Program).zip
+    # In this case, the title is 'Kagaku (Gensokigou Master)''
+    # And the tags are [ 'Japan', 'Program', 'SC-3000' ]
+    subtitle = ''
+    for item in matches:
+        if ',' in item:
+            split_tags = item.split(', ')
+            for tag in split_tags:
+                tags.append(tag)
+            split_tags = []
+        elif item in all_tags:
+            tags.append(item)
+        else:
+            subtitle = f'({item})'
+            # Find the index where (subtitle) ends
+            end_index = filename.find(subtitle) + len(subtitle)
+            # Slice the string up to that point
+            title = filename[:end_index]
+
+    tags.sort()
+    if subtitle == '':
+        return [filename[:filename.find('(') - 1], tags]
+    else:
+        return [title, tags]
+
+
 async def get_file_info(session, href):
     # Full URL
     file_url = urlparse.urljoin(BASE_URL, href)
     # Filename from the href
     filename = urlparse.unquote(os.path.basename(href))
 
+    title_and_tags = []
     # Make sure the file exists
     try:
         async with session.get(file_url, headers=HEADERS) as response:
             if response.status == 200:
-                files[filename] = file_url
+                title_and_tags = get_title_and_tags(filename)
+                files[filename] = [
+                    file_url,
+                    # Title
+                    title_and_tags[0],
+                    # List of tags sorted alphabetically
+                    title_and_tags[1]
+                ]
                 print(f"Found: {filename}")
             else:
                 print(f"Skipped (HTTP {response.status}): {filename}")
@@ -64,9 +154,20 @@ async def get_file_info(session, href):
 
 
 async def get_all_links(hrefs):
+    global files
+
     async with aiohttp.ClientSession() as session:
         tasks = [get_file_info(session, href) for href in hrefs]
         await asyncio.gather(*tasks)
+        files = dict(sorted(files.items()))
+
+
+def write_files_json(platform):
+    print(f'Writing: {platform}.json')
+    with open(f'{platform}.json', 'w') as file:
+        json.dump(files, file, indent=4)
+        file.write('\n')
+    print(f'Writing Complete')
 
 
 async def download_async(session, filename, url):
@@ -98,8 +199,18 @@ async def download_files(paths):
         await asyncio.gather(*tasks)
 
 
-if len(sys.argv) != 2 and not sys.argv[1].endswith(EXTENSION):
-    print("Error: No filename provided!")
-else:
-    asyncio.run(get_all_links(get_all_hrefs()))
-    asyncio.run(download_files([sys.argv[1]]))
+def write_filenames():
+    names = list(files.keys())
+    names.sort()
+    with open('sg1000.txt', 'w') as file:
+        for name in names:
+            file.write(f'{name}\n')
+
+
+# if len(sys.argv) != 2 and not sys.argv[1].endswith(EXTENSION):
+#     print("Error: No filename provided!")
+# else:
+asyncio.run(get_all_links(get_all_hrefs()))
+write_files_json('sg1000')
+# asyncio.run(download_files([sys.argv[1]]))
+# write_filenames()
