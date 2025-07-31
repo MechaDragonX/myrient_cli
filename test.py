@@ -354,6 +354,8 @@ while command != 'q':
                 search_results = search(parsed_query[0], parsed_query[1], parsed_query[2])
                 input('<Press any key to continue>')
                 print()
+            else:
+                print('You need to surround your query in quotation marks!\n')
         case 'download':
             download_user_input(search_results, filename, num_query)
             # Reset search_results
