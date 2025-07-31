@@ -248,15 +248,18 @@ def search(query):
 
     # Print the results
     print(f'Results:')
-    for result in results:
-        print(result)
+    if not results:
+        for result in results:
+            print(result)
+    else:
+        print('No results found')
 
     # Return for use later
     return results
 
 # asyncio.run(get_all_links(get_all_hrefs()))
 # write_files_json('sg1000')
-if os.path.isfile('sg1000.json')
+if os.path.isfile('sg1000.json'):
     read_files_json('sg1000')
 else:
     print('You need to provide a database file.')
