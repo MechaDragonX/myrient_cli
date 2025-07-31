@@ -12,8 +12,8 @@ import urllib.parse as urlparse
 # Not provided
 BASE_URL = 'https://myrient.erista.me/files/No-Intro/Sega%20-%20SG-1000/'
 HEADERS = {
-    "Referer": BASE_URL,
-    "User-Agent": "Mozilla/5.0",
+    'Referer': BASE_URL,
+    'User-Agent': 'Mozilla/5.0',
 }
 EXTENSION = '.zip'
 
@@ -146,11 +146,11 @@ async def get_file_info(session, href):
                     # List of tags sorted alphabetically
                     title_and_tags[1]
                 ]
-                print(f"Found: {filename}")
+                print(f'Found: {filename}')
             else:
-                print(f"Skipped (HTTP {response.status}): {filename}")
+                print(f'Skipped (HTTP {response.status}): {filename}')
     except aiohttp.ClientError as error:
-        print(f"Network error for {filename}: {error}")
+        print(f'Network error for {filename}: {error}')
 
 
 async def get_all_links(hrefs):
@@ -167,15 +167,25 @@ def write_files_json(platform):
     with open(f'{platform}.json', 'w') as file:
         json.dump(files, file, indent=4)
         file.write('\n')
-    print(f'Writing Complete')
+    print(f'Wrote: {platform}.json')
+
+
+def read_files_json(platform):
+    global files
+
+    print(f'Reading: {platform}.json')
+    with open(f'{platform}.json', 'r') as file:
+        files = json.load(file)
+    print(f'Read: {platform}.json')
 
 
 async def download_async(session, filename, url):
+    print(f'Downloading: {filename}')
     try:
         async with session.get(url, headers=HEADERS) as response:
             # Check for error
             if response.status != 200:
-                print(f"HTTP error for {filename}: {response.status}")
+                print(f'HTTP error for {filename}: {response.status}')
                 return
 
             # Write in chunks
@@ -185,32 +195,21 @@ async def download_async(session, filename, url):
                     if chunk:
                         file.write(chunk)
 
-        print(f"Saved: {filename}")
+        print(f'Saved: {filename}')
 
     except aiohttp.ClientError as error:
-        print(f"Request error for {filename}: {error}")
+        print(f'Request error for {filename}: {error}')
 
 
 async def download_files(paths):
     async with aiohttp.ClientSession() as session:
         tasks = []
         for filename in paths:
-            tasks.append(download_async(session, filename, files[filename]))
+            tasks.append(download_async(session, filename, files[filename][0]))
         await asyncio.gather(*tasks)
 
 
-def write_filenames():
-    names = list(files.keys())
-    names.sort()
-    with open('sg1000.txt', 'w') as file:
-        for name in names:
-            file.write(f'{name}\n')
-
-
-# if len(sys.argv) != 2 and not sys.argv[1].endswith(EXTENSION):
-#     print("Error: No filename provided!")
-# else:
-asyncio.run(get_all_links(get_all_hrefs()))
-write_files_json('sg1000')
-# asyncio.run(download_files([sys.argv[1]]))
-# write_filenames()
+# asyncio.run(get_all_links(get_all_hrefs()))
+# write_files_json('sg1000')
+read_files_json('sg1000')
+asyncio.run(download_files([sys.argv[1]]))
