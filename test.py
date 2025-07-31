@@ -3,9 +3,11 @@ import asyncio
 from bs4 import BeautifulSoup, Tag
 import json
 import os
+import os.path
 import re
 import requests
 import sys
+from thefuzz import fuzz, process
 import urllib.parse as urlparse
 
 
@@ -59,6 +61,31 @@ TAGS = {
     'Dump Type': [
         'Alt'
     ]
+}
+
+TAG2SHORT = {
+    'au': 'Australia',
+    'eu': 'Europe',
+    'fr': 'France',
+    'jp': 'Japan',
+    'kr': 'Korea',
+    'nz': 'New Zealand',
+    'tw': 'Taiwan',
+    'en': 'En',
+    'ja': 'Ja',
+    'zh-logo': 'Chinese Logo',
+    'en-logo': 'English Logo',
+    'kr-logo': 'Korean Logo',
+    'sc3k': 'SC-3000',
+    'sf7k': 'SF-7000',
+    'othello': 'Othello Multivision',
+    'bios': 'BIOS',
+    'prog': 'Program',
+    'unl': 'Unl',
+    'proto': 'Proto',
+    'r1': 'Rev 1',
+    'r2': 'Rev 2',
+    'alt': 'Alt'
 }
 
 
@@ -209,7 +236,33 @@ async def download_files(paths):
         await asyncio.gather(*tasks)
 
 
+def search(query):
+    print(f'Searching: {query}')
+    # Find 30 results in the keys with partial matching
+    matches = process.extract(query, files.keys(), limit=30, scorer=fuzz.partial_ratio)
+    # Consider everything with a match score greater than 70/100
+    results = []
+    for match in matches:
+        if match[1] >= 70:
+            results.append(match[0])
+
+    # Print the results
+    print(f'Results:')
+    for result in results:
+        print(result)
+
+    # Return for use later
+    return results
+
 # asyncio.run(get_all_links(get_all_hrefs()))
 # write_files_json('sg1000')
-read_files_json('sg1000')
-asyncio.run(download_files([sys.argv[1]]))
+if os.path.isfile('sg1000.json')
+    read_files_json('sg1000')
+else:
+    print('You need to provide a database file.')
+# asyncio.run(download_files([sys.argv[1]]))
+
+if len(sys.argv) == 2:
+    search(sys.argv[1])
+else:
+    print('You need to provide a search query.')
