@@ -63,7 +63,7 @@ TAGS = {
     ]
 }
 
-TAG2SHORT = {
+SHORT2TAG = {
     'au': 'Australia',
     'eu': 'Europe',
     'fr': 'France',
@@ -236,15 +236,52 @@ async def download_files(paths):
         await asyncio.gather(*tasks)
 
 
-def search(query):
-    print(f'Searching: {query}')
+# def tag_short2long(tags):
+#     result = []
+#     for tag in tags:
+#         if tag in SHORT2TAG:
+#             result.append(SHORT2TAG[tag])
+#     return result
+
+
+def parse_search_query(query):
+    tag_regex = r'"[^"]*"(.*)'
+    query_regex = r'"[^"]*"'
+
+    # Find everything in title that's not in quotes
+    non_title = re.findall(tag_regex, query)[0][1:]
+    # If there are no plus and minus tags
+    if '+' in non_title or '-' in non_title:
+        all_tags = non_title.split(' ')
+
+        # Add them to seperate tags based on the first char
+        plus_tags = []
+        minus_tags = []
+        for tag in all_tags:
+            if '+' in tag:
+                plus_tags.append(SHORT2TAG[tag[1:]])
+            elif '-' in tag:
+                minus_tags.append(SHORT2TAG[tag[1:]])
+
+        return [re.findall(query_regex, query)[0][1:-1], plus_tags, minus_tags]
+    # Otherwise, return blanks for tag lists
+    else:
+        return [re.findall(query_regex, query)[0][1:-1], [], []]
+
+
+def search(query, plus_tags, minus_tags):
     # Find 30 results in the keys with partial matching
-    matches = process.extract(query, files.keys(), limit=10, scorer=fuzz.partial_ratio)
+    matches = process.extract(query, files.keys(), limit=30, scorer=fuzz.partial_ratio)
+    plus_tags_found = False
+    minus_tags_found = False
     # Consider everything with a match score greater than 70/100
     results = []
     for match in matches:
-        if match[1] >= 70:
-            results.append(match[0])
+        if (match[1] >= 70):
+            plus_tags_found = any(item in files[match[0]][2] for item in plus_tags)
+            minus_tags_found = any(item not in files[match[0]][2] for item in minus_tags)
+            if plus_tags_found and not minus_tags_found:
+                results.append(match[0])
 
     # Print the results
     print(f'Results:')
@@ -300,6 +337,9 @@ os.system('clear||cls')
 start()
 
 command = ''
+query = ''
+query_regex = r'"[^"]*"'
+parsed_query = []
 search_results = []
 filename = ''
 num_query = 0
@@ -307,10 +347,13 @@ while command != 'q':
     command = input('Please type a command: ')
     match command:
         case 'search':
-            # Store results so they can be downloaded
-            search_results = search(input('Please type your query: '))
-            input('<Press any key to continue>')
-            print()
+            query = input('Please type your query: ')
+            if re.findall(query_regex, query):
+                parsed_query = parse_search_query(query)
+                # Store results so they can be downloaded
+                search_results = search(parsed_query[0], parsed_query[1], parsed_query[2])
+                input('<Press any key to continue>')
+                print()
         case 'download':
             download_user_input(search_results, filename, num_query)
             # Reset search_results
