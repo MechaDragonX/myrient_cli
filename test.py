@@ -239,7 +239,7 @@ async def download_files(paths):
 def search(query):
     print(f'Searching: {query}')
     # Find 30 results in the keys with partial matching
-    matches = process.extract(query, files.keys(), limit=30, scorer=fuzz.partial_ratio)
+    matches = process.extract(query, files.keys(), limit=10, scorer=fuzz.partial_ratio)
     # Consider everything with a match score greater than 70/100
     results = []
     for match in matches:
@@ -248,24 +248,73 @@ def search(query):
 
     # Print the results
     print(f'Results:')
-    if not results:
-        for result in results:
-            print(result)
+    if results:
+        for i in range(len(results)):
+            print(f'{i + 1}. {results[i]}')
     else:
         print('No results found')
 
     # Return for use later
     return results
 
-# asyncio.run(get_all_links(get_all_hrefs()))
-# write_files_json('sg1000')
-if os.path.isfile('sg1000.json'):
-    read_files_json('sg1000')
-else:
-    print('You need to provide a database file.')
-# asyncio.run(download_files([sys.argv[1]]))
 
-if len(sys.argv) == 2:
-    search(sys.argv[1])
-else:
-    print('You need to provide a search query.')
+def download_user_input(search_results, filename, query):
+    # If nothing was searched
+    if not search_results:
+        # Ask for filename
+        filename = input('Please type the name of the file you wish to download: ')
+        if filename in files:
+            asyncio.run(download_files([filename]))
+            print()
+        else:
+            print('That file doesn\'t exist!\n')
+    # Otherwise
+    else:
+        # Ask for number of search result
+        while query == 0:
+            query = input('Please type the number of the result you wish to download: ')
+            if not query.isdigit():
+                print('You need to type a number!')
+            else:
+                query = int(query)
+                if query >= 0 and query <= len(search_results):
+                    asyncio.run(download_files([search_results[query - 1]]))
+                else:
+                    print(f'You need to type a number between 1 and {len(search_results)}')
+
+
+def parse_link_create_json():
+    asyncio.run(get_all_links(get_all_hrefs()))
+    write_files_json('sg1000')
+
+
+def start():
+    if os.path.isfile('sg1000.json'):
+        read_files_json('sg1000')
+        print()
+    else:
+        print('You need to provide a database file.')
+
+
+os.system('clear||cls')
+start()
+
+command = ''
+search_results = []
+filename = ''
+num_query = 0
+while command != 'q':
+    command = input('Please type a command: ')
+    match command:
+        case 'search':
+            # Store results so they can be downloaded
+            search_results = search(input('Please type your query: '))
+            input('<Press any key to continue>')
+            print()
+        case 'download':
+            download_user_input(search_results, filename, num_query)
+            # Reset search_results
+            search_results = []
+            input('<Press any key to continue>')
+            # Clear screan as results need not be on screen anymore
+            os.system('clear||cls')
