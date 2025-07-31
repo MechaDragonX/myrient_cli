@@ -1,3 +1,4 @@
+from typing_extensions import Tuple
 import aiohttp
 import asyncio
 from bs4 import BeautifulSoup, Tag
@@ -243,7 +244,8 @@ async def download_files(paths):
 #             result.append(SHORT2TAG[tag])
 #     return result
 
-
+# Return value:
+# [title string, plus tags list, minus tags list]
 def parse_search_query(query):
     tag_regex = r'"[^"]*"(.*)'
     query_regex = r'"[^"]*"'
@@ -269,20 +271,49 @@ def parse_search_query(query):
         return [re.findall(query_regex, query)[0][1:-1], [], []]
 
 
-def search(query, plus_tags, minus_tags):
-    # Find 30 results in the keys with partial matching
-    # Returns tuple of (result string, closeness score int)
-    matches = process.extract(query, files.keys(), limit=30, scorer=fuzz.partial_ratio)
+def check_result(result, plus_tags, minus_tags):
+    # Check if the matches are close enough (if query is not blank), and check if the tags match
     plus_tags_found = False
     minus_tags_not_found = False
-    # Consider everything with a match score greater than 70/100
+
+    # If result is a match tuple
+    if type(result) == Tuple:
+        # Check if closeness score is >= 70
+        if result[1] >= 70:
+            # Check if any of the plus tags provided are in the result's tag list
+            plus_tags_found = any(item in files[result[0]][2] for item in plus_tags)
+            minus_tags_not_found = set(minus_tags).isdisjoint(files[result[0]][2])
+    else:
+        # Check if any of the plus tags provided are in the result's tag list
+        plus_tags_found = any(item in files[result][2] for item in plus_tags)
+        # Check if any of the minus tags provided ARE NOT in the result's tag list
+        minus_tags_not_found = set(minus_tags).isdisjoint(files[result][2])
+
+    # If both checks are true, then return result
+    if plus_tags_found and minus_tags_not_found:
+        return result
+    else:
+        return None
+
+
+def search(query, plus_tags, minus_tags):
+    matches = []
+    # If the query isn't blank, run comparisons
+    if query != "":
+        # Find 30 results in the keys with partial matching
+        # Returns tuple of (result string, closeness score int)
+        matches = process.extract(query, files.keys(), limit=30, scorer=fuzz.partial_ratio)
+    # Otherwise, just look through everything
+    else:
+        matches = files.keys()
+
+    # Check if the matches are close enough (if query is not blank), and check if the tags match
+    result = []
     results = []
     for match in matches:
-        if (match[1] >= 70):
-            plus_tags_found = any(item in files[match[0]][2] for item in plus_tags)
-            minus_tags_not_found = set(minus_tags).isdisjoint(files[match[0]][2])
-            if plus_tags_found and minus_tags_not_found:
-                results.append(match[0])
+        result = check_result(match, plus_tags, minus_tags)
+        if result != None:
+            results.append(result)
 
     # Print the results
     print(f'Results:')
@@ -311,14 +342,18 @@ def download_user_input(search_results, filename, query):
         # Ask for number of search result
         while query == 0:
             query = input('Please type the number of the result you wish to download: ')
-            if not query.isdigit():
-                print('You need to type a number!')
-            else:
+            if query.isdigit():
                 query = int(query)
                 if query >= 0 and query <= len(search_results):
                     asyncio.run(download_files([search_results[query - 1]]))
                 else:
                     print(f'You need to type a number between 1 and {len(search_results)}')
+            else:
+                if query.lower() == 'all':
+                    asyncio.run(download_files(search_results))
+                else:
+                    print(f'You either need the number of the file you wish to download, or "all" to download eveything!')
+
 
 
 def parse_link_create_json():
