@@ -271,16 +271,17 @@ def parse_search_query(query):
 
 def search(query, plus_tags, minus_tags):
     # Find 30 results in the keys with partial matching
+    # Returns tuple of (result string, closeness score int)
     matches = process.extract(query, files.keys(), limit=30, scorer=fuzz.partial_ratio)
     plus_tags_found = False
-    minus_tags_found = False
+    minus_tags_not_found = False
     # Consider everything with a match score greater than 70/100
     results = []
     for match in matches:
         if (match[1] >= 70):
             plus_tags_found = any(item in files[match[0]][2] for item in plus_tags)
-            minus_tags_found = any(item not in files[match[0]][2] for item in minus_tags)
-            if plus_tags_found and not minus_tags_found:
+            minus_tags_not_found = set(minus_tags).isdisjoint(files[match[0]][2])
+            if plus_tags_found and minus_tags_not_found:
                 results.append(match[0])
 
     # Print the results
