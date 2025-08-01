@@ -418,12 +418,12 @@ parsed_query = []
 search_results = []
 filename = ''
 num_query = 0
-while command != 'q':
-    command = input('Please type a command: ').strip()
+while command.lower().strip() != 'q' or command.lower().strip() != 'quit':
+    command = input('Please type a command: ').lower().strip()
     match command:
-        case 'search':
+        case 'search' | 's':
             search_results = search_user_input()
-        case 'download':
+        case 'download' | 'dl' | 'd':
             download_user_input(search_results, filename, num_query)
             # Reset search_results
             search_results = []
