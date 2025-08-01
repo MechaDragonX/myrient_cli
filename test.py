@@ -272,23 +272,32 @@ def check_result(result, plus_tags, minus_tags):
     if type(result) == tuple:
         # Check if closeness score is >= 70
         if result[1] >= 70:
-            # Check if any of the plus tags provided are in the result's tag list
-            plus_tags_found = any(item in games[result[0]][2] for item in plus_tags)
-            minus_tags_not_found = set(minus_tags).isdisjoint(games[result[0]][2])
+            if not plus_tags and not minus_tags:
+                # Check if any of the plus tags provided are in the result's tag list
+                plus_tags_found = any(item in games[result[0]][2] for item in plus_tags)
+                minus_tags_not_found = set(minus_tags).isdisjoint(games[result[0]][2])
+        # Do not return anything if the closeness score is too low
+        else:
+            return None
     else:
-        # Check if any of the plus tags provided are in the result's tag list
-        plus_tags_found = any(item in games[result][2] for item in plus_tags)
-        # Check if any of the minus tags provided ARE NOT in the result's tag list
-        minus_tags_not_found = set(minus_tags).isdisjoint(games[result][2])
+        if not plus_tags and not minus_tags:
+            # Check if any of the plus tags provided are in the result's tag list
+            plus_tags_found = any(item in games[result][2] for item in plus_tags)
+            # Check if any of the minus tags provided ARE NOT in the result's tag list
+            minus_tags_not_found = set(minus_tags).isdisjoint(games[result][2])
 
-    # If both checks are true, then return result
-    if plus_tags_found and minus_tags_not_found:
+    # Check if the tags lists aren't blank 
+    if plus_tags and minus_tags:
+        # If both checks are not true, don't return result
+        if not (plus_tags_found and minus_tags_not_found):
+            return None
+    else:
+        # Return result as befits type
         if type(result) == tuple:
-            return result[0]
+                return result[0]
         else:
             return result
-    else:
-        return None
+        
 
 
 def search(query, plus_tags, minus_tags):
