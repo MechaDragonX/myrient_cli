@@ -1,4 +1,3 @@
-from typing_extensions import Tuple
 import aiohttp
 import asyncio
 from bs4 import BeautifulSoup, Tag
@@ -25,7 +24,7 @@ EXTENSION = '.zip'
 #   title,
 #   tags (list)
 # ]
-files = {}
+games = {}
 
 TAGS = {
     'Region': [
@@ -167,7 +166,7 @@ async def get_file_info(session, href):
         async with session.get(file_url, headers=HEADERS) as response:
             if response.status == 200:
                 title_and_tags = get_title_and_tags(filename)
-                files[filename] = [
+                games[filename] = [
                     file_url,
                     # Title
                     title_and_tags[0],
@@ -182,28 +181,28 @@ async def get_file_info(session, href):
 
 
 async def get_all_links(hrefs):
-    global files
+    global games
 
     async with aiohttp.ClientSession() as session:
         tasks = [get_file_info(session, href) for href in hrefs]
         await asyncio.gather(*tasks)
-        files = dict(sorted(files.items()))
+        games = dict(sorted(games.items()))
 
 
-def write_files_json(platform):
+def write_games_json(platform):
     print(f'Writing: {platform}.json')
     with open(f'{platform}.json', 'w') as file:
-        json.dump(files, file, indent=4)
+        json.dump(games, file, indent=4)
         file.write('\n')
     print(f'Wrote: {platform}.json')
 
 
-def read_files_json(platform):
-    global files
+def read_games_json(platform):
+    global games
 
     print(f'Reading: {platform}.json')
     with open(f'{platform}.json', 'r') as file:
-        files = json.load(file)
+        games = json.load(file)
     print(f'Read: {platform}.json')
 
 
@@ -233,16 +232,9 @@ async def download_files(paths):
     async with aiohttp.ClientSession() as session:
         tasks = []
         for filename in paths:
-            tasks.append(download_async(session, filename, files[filename][0]))
+            tasks.append(download_async(session, filename, games[filename][0]))
         await asyncio.gather(*tasks)
 
-
-# def tag_short2long(tags):
-#     result = []
-#     for tag in tags:
-#         if tag in SHORT2TAG:
-#             result.append(SHORT2TAG[tag])
-#     return result
 
 # Return value:
 # [title string, plus tags list, minus tags list]
@@ -281,13 +273,13 @@ def check_result(result, plus_tags, minus_tags):
         # Check if closeness score is >= 70
         if result[1] >= 70:
             # Check if any of the plus tags provided are in the result's tag list
-            plus_tags_found = any(item in files[result[0]][2] for item in plus_tags)
-            minus_tags_not_found = set(minus_tags).isdisjoint(files[result[0]][2])
+            plus_tags_found = any(item in games[result[0]][2] for item in plus_tags)
+            minus_tags_not_found = set(minus_tags).isdisjoint(games[result[0]][2])
     else:
         # Check if any of the plus tags provided are in the result's tag list
-        plus_tags_found = any(item in files[result][2] for item in plus_tags)
+        plus_tags_found = any(item in games[result][2] for item in plus_tags)
         # Check if any of the minus tags provided ARE NOT in the result's tag list
-        minus_tags_not_found = set(minus_tags).isdisjoint(files[result][2])
+        minus_tags_not_found = set(minus_tags).isdisjoint(games[result][2])
 
     # If both checks are true, then return result
     if plus_tags_found and minus_tags_not_found:
@@ -305,10 +297,10 @@ def search(query, plus_tags, minus_tags):
     if query != "":
         # Find 30 results in the keys with partial matching
         # Returns tuple of (result string, closeness score int)
-        matches = process.extract(query, files.keys(), limit=30, scorer=fuzz.partial_ratio)
+        matches = process.extract(query, games.keys(), limit=30, scorer=fuzz.partial_ratio)
     # Otherwise, just look through everything
     else:
-        matches = files.keys()
+        matches = games.keys()
 
     # Check if the matches are close enough (if query is not blank), and check if the tags match
     result = []
@@ -375,7 +367,7 @@ def download_user_input(search_results, filename, query):
         while filename != '':
             # Ask for filename
             filename = input('Please type the name of the file you wish to download: ').strip()
-            if filename != '' and filename in files:
+            if filename != '' and filename in games:
                 asyncio.run(download_files([filename]))
                 print()
             else:
@@ -403,17 +395,18 @@ def download_user_input(search_results, filename, query):
                 print(f'You either need the number of the file you wish to download, or "all" to download eveything!')
 
 
-def parse_link_create_json():
+def create_games_json():
     asyncio.run(get_all_links(get_all_hrefs()))
-    write_files_json('sg1000')
+    write_games_json('sg1000')
 
 
 def start():
     if os.path.isfile('sg1000.json'):
-        read_files_json('sg1000')
+        read_games_json('sg1000')
         print()
     else:
-        print('You need to provide a database file.')
+        create_games_json()
+        os.system('clear||cls')
 
 
 os.system('clear||cls')
