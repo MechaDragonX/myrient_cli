@@ -352,10 +352,23 @@ def search_user_input():
     return search_results
 
 
+def gen_dl_list(search_results, queries):
+    num_query = 0
+    final_request = []
+
+    for query in queries:
+        num_query = int(query)
+        if num_query > 0 and num_query <= len(search_results):
+            final_request.append(search_results[num_query - 1])
+
+    return final_request
+
+
 def download_user_input(search_results, filename, query):
     filename = ''
     query = ''
     num_query = 0
+    multi_dl_regex = r'^(?:\d+ )+\d+'
 
     # If nothing was searched
     if not search_results:
@@ -373,19 +386,21 @@ def download_user_input(search_results, filename, query):
         # Ask for number of search result
         while query == '':
             query = input('Please type the number of the result you wish to download: ').strip()
-            if query.isdigit():
-                num_query = int(query)
-                if num_query > 0 and num_query <= len(search_results):
-                    asyncio.run(download_files([search_results[num_query - 1]]))
-                else:
-                    query = ''
-                    print(f'You need to type a number between 1 and {len(search_results)}')
+            # if query.isdigit():
+            #     num_query = int(query)
+            #     if num_query > 0 and num_query <= len(search_results):
+            #         asyncio.run(download_files([search_results[num_query - 1]]))
+            #     else:
+            #         query = ''
+            #         print(f'You need to type a number between 1 and {len(search_results)}')
+            # else:
+            if query.lower() == 'all':
+                asyncio.run(download_files(search_results))
+            elif query.isdigit() or len(re.findall(multi_dl_regex, query)) != 0:
+                asyncio.run(download_files(gen_dl_list(search_results, query.split(' '))))
             else:
-                if query.lower() == 'all':
-                    asyncio.run(download_files(search_results))
-                else:
-                    query = ''
-                    print(f'You either need the number of the file you wish to download, or "all" to download eveything!')
+                query = ''
+                print(f'You either need the number of the file you wish to download, or "all" to download eveything!')
 
 
 def parse_link_create_json():
