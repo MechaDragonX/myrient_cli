@@ -277,7 +277,7 @@ def check_result(result, plus_tags, minus_tags):
     minus_tags_not_found = False
 
     # If result is a match tuple
-    if type(result) == Tuple:
+    if type(result) == tuple:
         # Check if closeness score is >= 70
         if result[1] >= 70:
             # Check if any of the plus tags provided are in the result's tag list
@@ -291,7 +291,10 @@ def check_result(result, plus_tags, minus_tags):
 
     # If both checks are true, then return result
     if plus_tags_found and minus_tags_not_found:
-        return result
+        if type(result) == tuple:
+            return result[0]
+        else:
+            return result
     else:
         return None
 
@@ -327,33 +330,62 @@ def search(query, plus_tags, minus_tags):
     return results
 
 
-def download_user_input(search_results, filename, query):
-    # If nothing was searched
-    if not search_results:
-        # Ask for filename
-        filename = input('Please type the name of the file you wish to download: ')
-        if filename in files:
-            asyncio.run(download_files([filename]))
+def search_user_input():
+    query = ''
+    query_regex = r'"[^"]*"'
+    parsed_query = []
+    search_results = []
+
+    while query == '':
+        query = input('Please type your query: ').strip()
+        if re.findall(query_regex, query):
+            parsed_query = parse_search_query(query)
+            # Store results so they can be downloaded
+            search_results = search(parsed_query[0], parsed_query[1], parsed_query[2])
+            input('<Press any key to continue>').strip()
             print()
         else:
-            print('That file doesn\'t exist!\n')
+            query = ''
+            print('You need to surround your query in quotation marks!')
+
+    # return search results since they're created once you reach end of function
+    return search_results
+
+
+def download_user_input(search_results, filename, query):
+    filename = ''
+    query = ''
+    num_query = 0
+
+    # If nothing was searched
+    if not search_results:
+        while filename != '':
+            # Ask for filename
+            filename = input('Please type the name of the file you wish to download: ').strip()
+            if filename != '' and filename in files:
+                asyncio.run(download_files([filename]))
+                print()
+            else:
+                filename = ''
+                print('That file doesn\'t exist!\n')
     # Otherwise
     else:
         # Ask for number of search result
-        while query == 0:
-            query = input('Please type the number of the result you wish to download: ')
+        while query == '':
+            query = input('Please type the number of the result you wish to download: ').strip()
             if query.isdigit():
-                query = int(query)
-                if query >= 0 and query <= len(search_results):
-                    asyncio.run(download_files([search_results[query - 1]]))
+                num_query = int(query)
+                if num_query > 0 and num_query <= len(search_results):
+                    asyncio.run(download_files([search_results[num_query - 1]]))
                 else:
+                    query = ''
                     print(f'You need to type a number between 1 and {len(search_results)}')
             else:
                 if query.lower() == 'all':
                     asyncio.run(download_files(search_results))
                 else:
+                    query = ''
                     print(f'You either need the number of the file you wish to download, or "all" to download eveything!')
-
 
 
 def parse_link_create_json():
@@ -374,24 +406,15 @@ start()
 
 command = ''
 query = ''
-query_regex = r'"[^"]*"'
 parsed_query = []
 search_results = []
 filename = ''
 num_query = 0
 while command != 'q':
-    command = input('Please type a command: ')
+    command = input('Please type a command: ').strip()
     match command:
         case 'search':
-            query = input('Please type your query: ')
-            if re.findall(query_regex, query):
-                parsed_query = parse_search_query(query)
-                # Store results so they can be downloaded
-                search_results = search(parsed_query[0], parsed_query[1], parsed_query[2])
-                input('<Press any key to continue>')
-                print()
-            else:
-                print('You need to surround your query in quotation marks!\n')
+            search_results = search_user_input()
         case 'download':
             download_user_input(search_results, filename, num_query)
             # Reset search_results
