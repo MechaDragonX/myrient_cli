@@ -26,7 +26,7 @@ class UI():
             plus_tags = []
             minus_tags = []
             for tag in all_file_tags:
-                if self.db.short2tag[tag[1:]] in tag_list:
+                if tag[1:] in self.db.short2tag:
                     full_tag = self.db.short2tag[tag[1:]]
                     if '+' in tag:
                         plus_tags.append(full_tag)
@@ -147,6 +147,5 @@ class UI():
                     os.system('clear||cls')
                 case 'quit' | 'q':
                     running = False
-        
+
         print('Goodbye!')
-        
