@@ -69,15 +69,17 @@ class UI():
             num_query = int(query)
             if num_query > 0 and num_query <= len(search_results):
                 final_request.append(search_results[num_query - 1])
+            else:
+                return None
 
         return final_request
 
 
-    def download_user_input(self, search_results, filename, query):
+    def download_user_input(self, search_results, filename):
         filename = ''
         query = ''
-        num_query = 0
         multi_dl_regex = r'^(?:\d+ )+\d+'
+        final_result = []
 
         # If nothing was searched
         if not search_results:
@@ -106,7 +108,12 @@ class UI():
                 if query.lower() == 'all':
                     asyncio.run(self.myrient.download_files(search_results))
                 elif query.isdigit() or len(re.findall(multi_dl_regex, query)) != 0:
-                    asyncio.run(self.myrient.download_files(self.gen_dl_list(search_results, query.split(' '))))
+                    final_result = self.gen_dl_list(search_results, query.split(' '))
+                    if final_result != None:
+                        asyncio.run(self.myrient.download_files(final_result))
+                    else:
+                        query = ''
+                        print(f'Make sure the numbers you type are within the list!')
                 else:
                     query = ''
                     print(f'You either need the number of the file you wish to download, or "all" to download eveything!')
@@ -132,14 +139,13 @@ class UI():
         parsed_query = []
         search_results = []
         filename = ''
-        num_query = 0
         while running:
             command = input('Please type a command: ').lower().strip()
             match command:
                 case 'search' | 's':
                     search_results = self.search_user_input()
                 case 'download' | 'dl' | 'd':
-                    self.download_user_input(search_results, filename, num_query)
+                    self.download_user_input(search_results, filename)
                     # Reset search_results
                     search_results = []
                     input('<Press any key to continue>')
