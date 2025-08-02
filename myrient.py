@@ -52,9 +52,18 @@ class Myrient():
             # Check if closeness score is >= 70
             if result[1] >= 70:
                 if plus_tags or minus_tags:
-                    # Check if any of the plus tags provided are in the result's tag list
-                    plus_tags_found = any(item in self.db.games[result[0]][2] for item in plus_tags)
-                    minus_tags_not_found = set(minus_tags).isdisjoint(self.db.games[result[0]][2])
+                    # Check if the list is not empty
+                    if plus_tags:
+                        # Check if any of the plus tags provided are in the result's tag list
+                        plus_tags_found = any(item in self.db.games[result[0]][2] for item in plus_tags)
+                    else:
+                        # If empty, treat this check as true
+                        plus_tags_found = True
+                    # Do the same with minus tags
+                    if minus_tags:
+                        minus_tags_not_found = set(minus_tags).isdisjoint(self.db.games[result[0]][2])
+                    else:
+                        minus_tags_not_found = False
             # Do not return anything if the closeness score is too low
             else:
                 return None
