@@ -11,6 +11,7 @@ class Myrient():
     def __init__(self, db):
         self.db = db
 
+
     async def download_async(self, session, filename, url):
         print(f'Downloading: {filename}')
         try:
@@ -50,7 +51,7 @@ class Myrient():
         if type(result) == tuple:
             # Check if closeness score is >= 70
             if result[1] >= 70:
-                if plus_tags and minus_tags:
+                if plus_tags or minus_tags:
                     # Check if any of the plus tags provided are in the result's tag list
                     plus_tags_found = any(item in self.db.games[result[0]][2] for item in plus_tags)
                     minus_tags_not_found = set(minus_tags).isdisjoint(self.db.games[result[0]][2])
@@ -58,14 +59,14 @@ class Myrient():
             else:
                 return None
         else:
-            if plus_tags and minus_tags:
+            if plus_tags or minus_tags:
                 # Check if any of the plus tags provided are in the result's tag list
                 plus_tags_found = any(item in self.db.games[result][2] for item in plus_tags)
                 # Check if any of the minus tags provided ARE NOT in the result's tag list
                 minus_tags_not_found = set(minus_tags).isdisjoint(self.db.games[result][2])
 
         # Check if the tags lists aren't blank
-        if plus_tags and minus_tags:
+        if plus_tags or minus_tags:
             # If both checks are not true, don't return result
             if not (plus_tags_found and minus_tags_not_found):
                 return None
@@ -86,7 +87,7 @@ class Myrient():
             matches = process.extract(query, self.db.games.keys(), limit=30, scorer=fuzz.partial_ratio)
         # Otherwise, just look through everything
         else:
-            matches = self.db.games.keys()
+            matches = list(self.db.games.keys())
 
         # Check if the matches are close enough (if query is not blank), and check if the tags match
         result = []

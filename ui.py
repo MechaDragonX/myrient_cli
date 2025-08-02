@@ -17,22 +17,25 @@ class UI():
     def parse_search_query(self, query):
         tag_regex = r'"[^"]*"(.*)'
         query_regex = r'"[^"]*"'
+        tag_list = [item for sublist in self.db.tags.values() for item in sublist]
 
         # Find everything in title that's not in quotes
         non_title = re.findall(tag_regex, query)[0][1:]
         # If there are no plus and minus tags
         if '+' in non_title or '-' in non_title:
-            all_tags = non_title.split(' ')
+            all_file_tags = non_title.split(' ')
 
             # Add them to seperate tags based on the first char
+            full_tag = ''
             plus_tags = []
             minus_tags = []
-            for tag in all_tags:
-                if tag in self.db.tags:
+            for tag in all_file_tags:
+                if self.db.short2tag[tag[1:]] in tag_list:
+                    full_tag = self.db.short2tag[tag[1:]]
                     if '+' in tag:
-                        plus_tags.append(self.db.short2tag[tag[1:]])
+                        plus_tags.append(full_tag)
                     elif '-' in tag:
-                        minus_tags.append(self.db.short2tag[tag[1:]])
+                        minus_tags.append(full_tag)
 
             return [re.findall(query_regex, query)[0][1:-1], plus_tags, minus_tags]
         # Otherwise, return blanks for tag lists
@@ -115,11 +118,11 @@ class UI():
 
     def start(self, platform):
         # If database does not exist, generate it
-        if not os.path.isfile('sg1000-games.json'):
-            self.db.import_json_data('sg1000')
-            self.db.create_games_json('sg1000')
+        if not os.path.isfile(f'data/{platform}-games.json'):
+            self.db.import_json_data(f'{platform}')
+            self.db.create_games_json(f'{platform}')
         # Load database
-        self.db.import_json_data('sg1000')
+        self.db.import_json_data(f'{platform}')
         os.system('clear||cls')
 
 

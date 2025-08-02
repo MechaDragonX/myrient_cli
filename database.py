@@ -80,6 +80,10 @@ class Database():
                 # Slice the string up to that point
                 title = filename[:end_index]
 
+        # Handle BIOS tag differently since it's written differntly
+        if '[BIOS]' in filename:
+            tags.append('BIOS')
+
         tags.sort()
         if subtitle == '':
             return [filename[:filename.find('(') - 1], tags]
@@ -117,7 +121,7 @@ class Database():
         async with aiohttp.ClientSession() as session:
             tasks = [self.import_file_info(session, href) for href in hrefs]
             await asyncio.gather(*tasks)
-            games = dict(sorted(self.games.items()))
+            self.games = dict(sorted(self.games.items()))
 
 
     def write_games_json(self, platform):
@@ -147,6 +151,6 @@ class Database():
             self.read_json(platform, 'tags')
         if not self.short2tag:
             self.read_json(platform, 'short')
-        if os.path.isfile(f'{platform}-games.json'):
+        if os.path.isfile(f'data/{platform}-games.json'):
             self.read_json(platform, 'games')
         print(f'Database files read')
