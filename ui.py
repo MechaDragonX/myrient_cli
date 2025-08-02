@@ -114,14 +114,13 @@ class UI():
 
 
     def start(self, platform):
-        if os.path.isfile(f'data/{platform}-games.json'):
-            self.db.import_json_data(platform)
-            print()
-        else:
-            self.db.import_json_data(platform)
-            self.db.create_games_json(platform)
-            self.db.import_json_data(platform)
-            os.system('clear||cls')
+        # If database does not exist, generate it
+        if not os.path.isfile('sg1000-games.json'):
+            self.db.import_json_data('sg1000')
+            self.db.create_games_json('sg1000')
+        # Load database
+        self.db.import_json_data('sg1000')
+        os.system('clear||cls')
 
 
     def program(self, platform):
