@@ -126,13 +126,14 @@ class UI():
         os.system('clear||cls')
         self.start(platform)
 
+        running = True
         command = ''
         query = ''
         parsed_query = []
         search_results = []
         filename = ''
         num_query = 0
-        while command.lower().strip() != 'q' or command.lower().strip() != 'quit':
+        while running:
             command = input('Please type a command: ').lower().strip()
             match command:
                 case 'search' | 's':
@@ -144,3 +145,8 @@ class UI():
                     input('<Press any key to continue>')
                     # Clear screan as results need not be on screen anymore
                     os.system('clear||cls')
+                case 'quit' | 'q':
+                    running = False
+        
+        print('Goodbye!')
+        
