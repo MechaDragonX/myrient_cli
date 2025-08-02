@@ -1,10 +1,6 @@
-import aiohttp
 import asyncio
 import os
 import re
-import sys
-from database import Database
-from myrient import Myrient
 
 class UI():
     def __init__(self, db, myrient):

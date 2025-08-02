@@ -1,10 +1,6 @@
 import aiohttp
 import asyncio
-import os
-import re
-import sys
 from thefuzz import fuzz, process
-import urllib.parse as urlparse
 
 
 class Myrient():
