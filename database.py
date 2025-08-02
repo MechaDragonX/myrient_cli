@@ -122,31 +122,31 @@ class Database():
 
     def write_games_json(self, platform):
         print(f'Writing: {platform}-games.json')
-        with open(f'{platform}-games.json', 'w') as file:
+        with open(f'data/{platform}-games.json', 'w') as file:
             json.dump(self.games, file, indent=4)
             file.write('\n')
         print(f'Wrote: {platform}-games.json')
 
 
     def read_json(self, platform, category):
-        print(f'Reading: {platform}-{category}.json')
-        with open(f'{platform}-{category}.json', 'r') as file:
+        with open(f'data/{platform}-{category}.json', 'r') as file:
             if category == 'tags':
                 self.tags = json.load(file)
             elif category == 'short':
                 self.short2tag = json.load(file)
             elif category == 'games':
                 self.games = json.load(file)
-        print(f'Read: {platform}-{category}.json')
 
     def create_games_json(self, platform):
         asyncio.run(self.import_all_links(self.import_all_hrefs()))
         self.write_games_json(platform)
 
     def import_json_data(self, platform):
+        print(f'Reading database files')
         if not self.tags:
             self.read_json(platform, 'tags')
         if not self.short2tag:
             self.read_json(platform, 'short')
         if os.path.isfile(f'{platform}-games.json'):
             self.read_json(platform, 'games')
+        print(f'Database files read')

@@ -28,10 +28,11 @@ class UI():
             plus_tags = []
             minus_tags = []
             for tag in all_tags:
-                if '+' in tag:
-                    plus_tags.append(self.db.short2tag[tag[1:]])
-                elif '-' in tag:
-                    minus_tags.append(self.db.short2tag[tag[1:]])
+                if tag in self.db.tags:
+                    if '+' in tag:
+                        plus_tags.append(self.db.short2tag[tag[1:]])
+                    elif '-' in tag:
+                        minus_tags.append(self.db.short2tag[tag[1:]])
 
             return [re.findall(query_regex, query)[0][1:-1], plus_tags, minus_tags]
         # Otherwise, return blanks for tag lists
@@ -113,7 +114,7 @@ class UI():
 
 
     def start(self, platform):
-        if os.path.isfile(f'{platform}-games.json'):
+        if os.path.isfile(f'data/{platform}-games.json'):
             self.db.import_json_data(platform)
             print()
         else:
