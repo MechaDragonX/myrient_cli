@@ -32,6 +32,8 @@ class UI():
                         plus_tags.append(full_tag)
                     elif '-' in tag:
                         minus_tags.append(full_tag)
+                else:
+                    return None
 
             return [re.findall(query_regex, query)[0][1:-1], plus_tags, minus_tags]
         # Otherwise, return blanks for tag lists
@@ -49,10 +51,14 @@ class UI():
             query = input('Please type your query: ').strip()
             if re.findall(query_regex, query):
                 parsed_query = self.parse_search_query(query)
-                # Store results so they can be downloaded
-                search_results = self.myrient.search(parsed_query[0], parsed_query[1], parsed_query[2])
-                input('<Press any key to continue>').strip()
-                print()
+                if parsed_query != None:
+                    # Store results so they can be downloaded
+                    search_results = self.myrient.search(parsed_query[0], parsed_query[1], parsed_query[2])
+                    input('<Press any key to continue>').strip()
+                    print()
+                else:
+                    query = ''
+                    print('Not all of your tags are supported!')
             else:
                 query = ''
                 print('You need to surround your query in quotation marks!')
@@ -97,14 +103,6 @@ class UI():
             # Ask for number of search result
             while query == '':
                 query = input('Please type the number of the result you wish to download: ').strip()
-                # if query.isdigit():
-                #     num_query = int(query)
-                #     if num_query > 0 and num_query <= len(search_results):
-                #         asyncio.run(download_files([search_results[num_query - 1]]))
-                #     else:
-                #         query = ''
-                #         print(f'You need to type a number between 1 and {len(search_results)}')
-                # else:
                 if query.lower() == 'all':
                     asyncio.run(self.myrient.download_files(search_results))
                 elif query.isdigit() or len(re.findall(multi_dl_regex, query)) != 0:
