@@ -1,215 +1,19 @@
 import aiohttp
 import asyncio
-from bs4 import BeautifulSoup, Tag
-import json
 import os
-import os.path
 import re
-import requests
 import sys
 from thefuzz import fuzz, process
 import urllib.parse as urlparse
-
-
-# Not provided
-BASE_URL = 'https://myrient.erista.me/files/No-Intro/Sega%20-%20SG-1000/'
-HEADERS = {
-    'Referer': BASE_URL,
-    'User-Agent': 'Mozilla/5.0',
-}
-EXTENSION = '.zip'
-
-# filename: [
-#   url,
-#   title,
-#   tags (list)
-# ]
-games = {}
-
-TAGS = {
-    'Region': [
-        'Australia',
-        'Europe',
-        'France',
-        'Japan',
-        'Korea',
-        'New Zealand',
-        'Taiwan'
-    ],
-    'Language': [
-        'En',
-        'Ja',
-        'Chinese Logo',
-        'English Logo',
-        'Korean Logo'
-    ],
-    'Platform': [
-        'SC-3000',
-        'SF-7000',
-        'Othello Multivision'
-    ],
-    'Software Type': [
-        'BIOS',
-        'Program',
-        'Unl'
-    ],
-    'Revision': [
-        'Proto',
-        'Rev 1',
-        'Rev 2'
-    ],
-    'Dump Type': [
-        'Alt'
-    ]
-}
-
-SHORT2TAG = {
-    'au': 'Australia',
-    'eu': 'Europe',
-    'fr': 'France',
-    'jp': 'Japan',
-    'kr': 'Korea',
-    'nz': 'New Zealand',
-    'tw': 'Taiwan',
-    'en': 'En',
-    'ja': 'Ja',
-    'zh-logo': 'Chinese Logo',
-    'en-logo': 'English Logo',
-    'kr-logo': 'Korean Logo',
-    'sc3k': 'SC-3000',
-    'sf7k': 'SF-7000',
-    'othello': 'Othello Multivision',
-    'bios': 'BIOS',
-    'prog': 'Program',
-    'unl': 'Unl',
-    'proto': 'Proto',
-    'r1': 'Rev 1',
-    'r2': 'Rev 2',
-    'alt': 'Alt'
-}
-
-
-def get_all_hrefs():
-    print(f'Fetching: {urlparse.unquote(BASE_URL)}')
-    try:
-        with requests.get(BASE_URL) as response:
-            response.raise_for_status()
-
-            parser = BeautifulSoup(response.text, 'html.parser')
-            hrefs = []
-            href = None
-            # a tags for links
-            for a in parser.find_all('a'):
-                # Make sure is proper link with href attribute
-                if hasattr(a, 'get') and isinstance(a, Tag):
-                    href = a.get('href')
-                    # Check if extension is a zip file
-                    if href.lower().endswith(EXTENSION):
-                        hrefs.append(href)
-
-            return hrefs
-    # HTTP error code error, like 404
-    except requests.exceptions.HTTPError as error:
-        print(f'HTTP error: {error}')
-    # Network error such as timeout
-    except requests.exceptions.RequestException as error:
-        print(f'Other error: {error}')
-
-
-# Return value:
-# List containing the title of the game and the tags
-# This is done at the same time to handle cases of parenthetical subtitles
-def get_title_and_tags(filename):
-    tag_regex = r'(?<=\().*?(?=\))'
-    matches = re.findall(tag_regex, filename)
-
-    split_tags = []
-    tags = []
-    all_tags = [item for sublist in TAGS.values() for item in sublist]
-    title = ''
-    # For situations where the filename contains a parenthetical subtitle
-    # Example: Kagaku (Gensokigou Master) (Japan) (SC-3000) (Program).zip
-    # In this case, the title is 'Kagaku (Gensokigou Master)''
-    # And the tags are [ 'Japan', 'Program', 'SC-3000' ]
-    subtitle = ''
-    for item in matches:
-        if ',' in item:
-            split_tags = item.split(', ')
-            for tag in split_tags:
-                tags.append(tag)
-            split_tags = []
-        elif item in all_tags:
-            tags.append(item)
-        else:
-            subtitle = f'({item})'
-            # Find the index where (subtitle) ends
-            end_index = filename.find(subtitle) + len(subtitle)
-            # Slice the string up to that point
-            title = filename[:end_index]
-
-    tags.sort()
-    if subtitle == '':
-        return [filename[:filename.find('(') - 1], tags]
-    else:
-        return [title, tags]
-
-
-async def get_file_info(session, href):
-    # Full URL
-    file_url = urlparse.urljoin(BASE_URL, href)
-    # Filename from the href
-    filename = urlparse.unquote(os.path.basename(href))
-
-    title_and_tags = []
-    # Make sure the file exists
-    try:
-        async with session.get(file_url, headers=HEADERS) as response:
-            if response.status == 200:
-                title_and_tags = get_title_and_tags(filename)
-                games[filename] = [
-                    file_url,
-                    # Title
-                    title_and_tags[0],
-                    # List of tags sorted alphabetically
-                    title_and_tags[1]
-                ]
-                print(f'Found: {filename}')
-            else:
-                print(f'Skipped (HTTP {response.status}): {filename}')
-    except aiohttp.ClientError as error:
-        print(f'Network error for {filename}: {error}')
-
-
-async def get_all_links(hrefs):
-    global games
-
-    async with aiohttp.ClientSession() as session:
-        tasks = [get_file_info(session, href) for href in hrefs]
-        await asyncio.gather(*tasks)
-        games = dict(sorted(games.items()))
-
-
-def write_games_json(platform):
-    print(f'Writing: {platform}.json')
-    with open(f'{platform}.json', 'w') as file:
-        json.dump(games, file, indent=4)
-        file.write('\n')
-    print(f'Wrote: {platform}.json')
-
-
-def read_games_json(platform):
-    global games
-
-    print(f'Reading: {platform}.json')
-    with open(f'{platform}.json', 'r') as file:
-        games = json.load(file)
-    print(f'Read: {platform}.json')
+from database import Database
 
 
 async def download_async(session, filename, url):
+    global db
+
     print(f'Downloading: {filename}')
     try:
-        async with session.get(url, headers=HEADERS) as response:
+        async with session.get(url, headers=db.headers) as response:
             # Check for error
             if response.status != 200:
                 print(f'HTTP error for {filename}: {response.status}')
@@ -229,16 +33,20 @@ async def download_async(session, filename, url):
 
 
 async def download_files(paths):
+    global db
+
     async with aiohttp.ClientSession() as session:
         tasks = []
         for filename in paths:
-            tasks.append(download_async(session, filename, games[filename][0]))
+            tasks.append(download_async(session, filename, db.games[filename][0]))
         await asyncio.gather(*tasks)
 
 
 # Return value:
 # [title string, plus tags list, minus tags list]
 def parse_search_query(query):
+    global db
+
     tag_regex = r'"[^"]*"(.*)'
     query_regex = r'"[^"]*"'
 
@@ -253,9 +61,9 @@ def parse_search_query(query):
         minus_tags = []
         for tag in all_tags:
             if '+' in tag:
-                plus_tags.append(SHORT2TAG[tag[1:]])
+                plus_tags.append(db.short2tag[tag[1:]])
             elif '-' in tag:
-                minus_tags.append(SHORT2TAG[tag[1:]])
+                minus_tags.append(db.short2tag[tag[1:]])
 
         return [re.findall(query_regex, query)[0][1:-1], plus_tags, minus_tags]
     # Otherwise, return blanks for tag lists
@@ -264,6 +72,8 @@ def parse_search_query(query):
 
 
 def check_result(result, plus_tags, minus_tags):
+    global db
+
     # Check if the matches are close enough (if query is not blank), and check if the tags match
     plus_tags_found = False
     minus_tags_not_found = False
@@ -272,44 +82,45 @@ def check_result(result, plus_tags, minus_tags):
     if type(result) == tuple:
         # Check if closeness score is >= 70
         if result[1] >= 70:
-            if not plus_tags and not minus_tags:
+            if plus_tags and minus_tags:
                 # Check if any of the plus tags provided are in the result's tag list
-                plus_tags_found = any(item in games[result[0]][2] for item in plus_tags)
-                minus_tags_not_found = set(minus_tags).isdisjoint(games[result[0]][2])
+                plus_tags_found = any(item in db.games[result[0]][2] for item in plus_tags)
+                minus_tags_not_found = set(minus_tags).isdisjoint(db.games[result[0]][2])
         # Do not return anything if the closeness score is too low
         else:
             return None
     else:
-        if not plus_tags and not minus_tags:
+        if plus_tags and minus_tags:
             # Check if any of the plus tags provided are in the result's tag list
-            plus_tags_found = any(item in games[result][2] for item in plus_tags)
+            plus_tags_found = any(item in db.games[result][2] for item in plus_tags)
             # Check if any of the minus tags provided ARE NOT in the result's tag list
-            minus_tags_not_found = set(minus_tags).isdisjoint(games[result][2])
+            minus_tags_not_found = set(minus_tags).isdisjoint(db.games[result][2])
 
-    # Check if the tags lists aren't blank 
+    # Check if the tags lists aren't blank
     if plus_tags and minus_tags:
         # If both checks are not true, don't return result
         if not (plus_tags_found and minus_tags_not_found):
             return None
+
+    # Return result as befits type
+    if type(result) == tuple:
+        return result[0]
     else:
-        # Return result as befits type
-        if type(result) == tuple:
-                return result[0]
-        else:
-            return result
-        
+        return result
 
 
 def search(query, plus_tags, minus_tags):
+    global db
+
     matches = []
     # If the query isn't blank, run comparisons
     if query != "":
         # Find 30 results in the keys with partial matching
         # Returns tuple of (result string, closeness score int)
-        matches = process.extract(query, games.keys(), limit=30, scorer=fuzz.partial_ratio)
+        matches = process.extract(query, db.games.keys(), limit=30, scorer=fuzz.partial_ratio)
     # Otherwise, just look through everything
     else:
-        matches = games.keys()
+        matches = db.games.keys()
 
     # Check if the matches are close enough (if query is not blank), and check if the tags match
     result = []
@@ -366,6 +177,7 @@ def gen_dl_list(search_results, queries):
 
 
 def download_user_input(search_results, filename, query):
+    global db
     filename = ''
     query = ''
     num_query = 0
@@ -376,7 +188,7 @@ def download_user_input(search_results, filename, query):
         while filename != '':
             # Ask for filename
             filename = input('Please type the name of the file you wish to download: ').strip()
-            if filename != '' and filename in games:
+            if filename != '' and filename in db.games:
                 asyncio.run(download_files([filename]))
                 print()
             else:
@@ -404,18 +216,20 @@ def download_user_input(search_results, filename, query):
                 print(f'You either need the number of the file you wish to download, or "all" to download eveything!')
 
 
-def create_games_json():
-    asyncio.run(get_all_links(get_all_hrefs()))
-    write_games_json('sg1000')
-
-
 def start():
-    if os.path.isfile('sg1000.json'):
-        read_games_json('sg1000')
+    global db
+
+    if os.path.isfile('sg1000-games.json'):
+        db.import_json_data('sg1000')
         print()
     else:
-        create_games_json()
+        db.import_json_data('sg1000')
+        db.create_games_json('sg1000')
+        db.import_json_data('sg1000')
         os.system('clear||cls')
+
+
+db = Database('https://myrient.erista.me/files/No-Intro/Sega%20-%20SG-1000/')
 
 
 os.system('clear||cls')
