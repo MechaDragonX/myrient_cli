@@ -59,7 +59,7 @@ class Myrient():
                     if minus_tags:
                         minus_tags_not_found = set(minus_tags).isdisjoint(self.db.games[result[0]][2])
                     else:
-                        minus_tags_not_found = False
+                        minus_tags_not_found = True
             # Do not return anything if the closeness score is too low
             else:
                 return None
