@@ -1,6 +1,7 @@
 import asyncio
 import os
 import re
+import shlex
 
 class UI():
     def __init__(self, db, myrient):
@@ -8,37 +9,42 @@ class UI():
         self.myrient = myrient
 
 
+    def parse_tag(self, tag):
+        if tag in [item for sublist in self.db.tags.values() for item in sublist]:
+            return tag
+        elif tag in self.db.short2tag:
+            return self.db.short2tag[tag]
+        else:
+            return None
+
+
     # Return value:
     # [title string, plus tags list, minus tags list]
-    def parse_search_query(self, query):
-        tag_regex = r'"[^"]*"(.*)'
-        query_regex = r'"[^"]*"'
-        tag_list = [item for sublist in self.db.tags.values() for item in sublist]
-
-        # Find everything in title that's not in quotes
-        non_title = re.findall(tag_regex, query)[0][1:]
-        # If there are no plus and minus tags
-        if '+' in non_title or '-' in non_title:
-            all_file_tags = non_title.split(' ')
-
-            # Add them to seperate tags based on the first char
-            full_tag = ''
-            plus_tags = []
-            minus_tags = []
-            for tag in all_file_tags:
-                if tag[1:] in self.db.short2tag:
-                    full_tag = self.db.short2tag[tag[1:]]
-                    if '+' in tag:
-                        plus_tags.append(full_tag)
-                    elif '-' in tag:
-                        minus_tags.append(full_tag)
+    def parse_search_query(self, query_args):
+        full_tag = ''
+        plus_tags = []
+        minus_tags = []
+        # title search query
+        title_query = ''
+        incorrect_args = False
+        for arg in query_args:
+            if arg[0] in ('+', '-'):
+                target_list = plus_tags if arg[0] == '+' else minus_tags
+                full_tag = self.parse_tag(arg[1:])
+                if full_tag is not None:
+                    target_list.append(full_tag)
                 else:
-                    return None
+                    incorrect_args = True
+            elif title_query == '':
+                title_query = arg
+            else:
+                incorrect_args = True
 
-            return [re.findall(query_regex, query)[0][1:-1], plus_tags, minus_tags]
-        # Otherwise, return blanks for tag lists
-        else:
-            return [re.findall(query_regex, query)[0][1:-1], [], []]
+        
+        if incorrect_args:
+            return None
+        
+        return [title_query, plus_tags, minus_tags]
 
 
     def search_user_input(self):
@@ -49,19 +55,15 @@ class UI():
 
         while query == '':
             query = input('Please type your query: ').strip()
-            if re.findall(query_regex, query):
-                parsed_query = self.parse_search_query(query)
-                if parsed_query != None:
-                    # Store results so they can be downloaded
-                    search_results = self.myrient.search(parsed_query[0], parsed_query[1], parsed_query[2])
-                    input('<Press any key to continue>').strip()
-                    print()
-                else:
-                    query = ''
-                    print('Not all of your tags are supported!')
+            parsed_query = self.parse_search_query(shlex.split(query))
+            if parsed_query != None:
+                # Store results so they can be downloaded
+                search_results = self.myrient.search(parsed_query[0], parsed_query[1], parsed_query[2])
+                input('<Press any key to continue>').strip()
+                print()
             else:
                 query = ''
-                print('You need to surround your query in quotation marks!')
+                print('You either need quotation marks around your query, or not all of your tags are supported!')
 
         # return search results since they're created once you reach end of function
         return search_results
