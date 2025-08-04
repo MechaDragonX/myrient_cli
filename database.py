@@ -16,9 +16,8 @@ class Database():
             'Referer': base_url,
             'User-Agent': 'Mozilla/5.0',
         }
-        self.tags = {}
-        self.short2tag = {}
         self.games = {}
+        self.tags = {}
 
 
     def import_all_hrefs(self):
@@ -57,7 +56,7 @@ class Database():
 
         split_tags = []
         tags = []
-        all_tags = [item for sublist in self.tags.values() for item in sublist]
+        all_tags = list(self.tags.values())
         title = ''
         # For situations where the filename contains a parenthetical subtitle
         # Example: Kagaku (Gensokigou Master) (Japan) (SC-3000) (Program).zip
@@ -132,14 +131,13 @@ class Database():
         print(f'Wrote: {platform}-games.json')
 
 
-    def read_json(self, platform, category):
-        with open(f'data/{platform}-{category}.json', 'r') as file:
-            if category == 'tags':
-                self.tags = json.load(file)
-            elif category == 'short':
-                self.short2tag = json.load(file)
-            elif category == 'games':
+    def read_json(self, category, platform=''):
+        if category == 'games':
+            with open(f'data/{platform}-{category}.json', 'r') as file:
                 self.games = json.load(file)
+        else:
+            with open(f'data/{category}.json', 'r') as file:
+                self.tags = json.load(file)
 
     def create_games_json(self, platform):
         asyncio.run(self.import_all_links(self.import_all_hrefs()))
@@ -148,9 +146,7 @@ class Database():
     def import_json_data(self, platform):
         print(f'Reading database files')
         if not self.tags:
-            self.read_json(platform, 'tags')
-        if not self.short2tag:
-            self.read_json(platform, 'short')
+            self.read_json('tags')
         if os.path.isfile(f'data/{platform}-games.json'):
-            self.read_json(platform, 'games')
+            self.read_json('games', platform)
         print(f'Database files read')

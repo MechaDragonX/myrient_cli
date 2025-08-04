@@ -10,10 +10,11 @@ class UI():
 
 
     def parse_tag(self, tag):
-        if tag in [item for sublist in self.db.tags.values() for item in sublist]:
+        if tag in self.db.tags.values():
+            # return key
+            return next((k for k, v in self.db.tags.items() if v == tag))
+        elif tag in self.db.tags:
             return tag
-        elif tag in self.db.short2tag:
-            return self.db.short2tag[tag]
         else:
             return None
 
@@ -40,10 +41,10 @@ class UI():
             else:
                 incorrect_args = True
 
-        
+
         if incorrect_args:
             return None
-        
+
         return [title_query, plus_tags, minus_tags]
 
 
