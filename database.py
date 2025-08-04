@@ -56,7 +56,6 @@ class Database():
 
         split_tags = []
         tags = []
-        all_tags = list(self.tags.values())
         title = ''
         # For situations where the filename contains a parenthetical subtitle
         # Example: Kagaku (Gensokigou Master) (Japan) (SC-3000) (Program).zip
@@ -67,10 +66,10 @@ class Database():
             if ',' in item:
                 split_tags = item.split(', ')
                 for tag in split_tags:
-                    if item in all_tags:
+                    if tag in self.tags:
                         tags.append(tag)
                 split_tags = []
-            elif item in all_tags:
+            elif item in self.tags:
                 tags.append(item)
             else:
                 subtitle = f'({item})'
